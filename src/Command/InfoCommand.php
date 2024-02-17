@@ -11,7 +11,7 @@ declare(strict_types=1);
  */
 namespace Hyperf\AsyncQueue\Command;
 
-use Hyperf\AsyncQueue\Driver\DriverFactory;
+use Hyperf\AsyncQueue\Driver\DriverFactoryInterface;
 use Hyperf\Command\Command as HyperfCommand;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\Console\Input\InputArgument;
@@ -28,19 +28,19 @@ class InfoCommand extends HyperfCommand
 
     public function handle()
     {
-        $name = $this->input->getArgument('name');
-        $factory = $this->container->get(DriverFactory::class);
-        $driver = $factory->get($name);
+        $pool = $this->input->getArgument('pool');
+        $factory = $this->container->get(DriverFactoryInterface::class);
+        $driver = $factory->get($pool);
 
         $info = $driver->info();
         foreach ($info as $key => $count) {
-            $this->output->writeln(sprintf('<fg=green>%s count is %d.</>', $key, $count));
+            $this->info(sprintf('%s count is %d', $key, $count));
         }
     }
 
     protected function configure()
     {
-        $this->setDescription('Get all messages from the queue.');
-        $this->addArgument('name', InputArgument::OPTIONAL, 'The name of queue.', 'default');
+        $this->setDescription('Count all messages from the queue.');
+        $this->addArgument('pool', InputArgument::OPTIONAL, 'The pool of queue.', 'default');
     }
 }

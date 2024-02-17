@@ -15,6 +15,10 @@ interface MessageInterface
 {
     public function job(): JobInterface;
 
+    public function getId(): string;
+
+    public function getPool(): string;
+
     /**
      * Whether the queue can be handle again.
      */

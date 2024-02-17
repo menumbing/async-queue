@@ -52,7 +52,7 @@ class ReloadChannelListener implements ListenerInterface
             return;
         }
 
-        $event->driver->reload($event->key);
+        $event->driver->reloadAll($event->key);
 
         $this->logger->info(sprintf('%s channel reload %d messages to waiting channel success.', $event->key, $event->length));
     }

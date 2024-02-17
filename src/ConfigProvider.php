@@ -14,7 +14,15 @@ namespace Hyperf\AsyncQueue;
 use Hyperf\AsyncQueue\Aspect\AsyncQueueAspect;
 use Hyperf\AsyncQueue\Command\FlushFailedMessageCommand;
 use Hyperf\AsyncQueue\Command\InfoCommand;
+use Hyperf\AsyncQueue\Command\ReloadAllFailedMessageCommand;
 use Hyperf\AsyncQueue\Command\ReloadFailedMessageCommand;
+use Hyperf\AsyncQueue\Driver\DriverFactory;
+use Hyperf\AsyncQueue\Driver\DriverFactoryInterface;
+use Hyperf\AsyncQueue\Failed\FailedQueueRecorderFactory;
+use Hyperf\AsyncQueue\Listener\QueueHandleListener;
+use Hyperf\AsyncQueue\Listener\QueueLengthListener;
+use Hyperf\AsyncQueue\Listener\ReloadChannelListener;
+use Menumbing\Contract\AsyncQueue\FailedQueueRecorderInterface;
 
 class ConfigProvider
 {
@@ -24,9 +32,18 @@ class ConfigProvider
             'aspects' => [
                 AsyncQueueAspect::class,
             ],
+            'dependencies' => [
+                DriverFactoryInterface::class => DriverFactory::class,
+                FailedQueueRecorderInterface::class => FailedQueueRecorderFactory::class,
+            ],
+            'listeners' => [
+                QueueHandleListener::class,
+                ReloadChannelListener::class,
+            ],
             'commands' => [
                 FlushFailedMessageCommand::class,
                 InfoCommand::class,
+                ReloadAllFailedMessageCommand::class,
                 ReloadFailedMessageCommand::class,
             ],
             'publish' => [
@@ -35,6 +52,12 @@ class ConfigProvider
                     'description' => 'The config for async queue.',
                     'source' => __DIR__ . '/../publish/async_queue.php',
                     'destination' => BASE_PATH . '/config/autoload/async_queue.php',
+                ],
+                [
+                    'id' => 'migration:failed-messages',
+                    'description' => 'The failed messages migration.',
+                    'source' => __DIR__ . '/../publish/migrations/2024_02_16_192823_create_failed_messages_table.php',
+                    'destination' => BASE_PATH . '/migrations/2024_02_16_192823_create_failed_messages_table.php',
                 ],
             ],
         ];

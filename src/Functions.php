@@ -11,7 +11,7 @@ declare(strict_types=1);
  */
 namespace Hyperf\AsyncQueue;
 
-use Hyperf\AsyncQueue\Driver\DriverFactory;
+use Hyperf\AsyncQueue\Driver\DriverFactoryInterface;
 use Hyperf\Context\ApplicationContext;
 
 function dispatch(JobInterface $job, ?int $delay = null, ?int $maxAttempts = null, ?string $pool = null): bool
@@ -21,7 +21,7 @@ function dispatch(JobInterface $job, ?int $delay = null, ?int $maxAttempts = nul
     }
 
     return ApplicationContext::getContainer()
-        ->get(DriverFactory::class)
+        ->get(DriverFactoryInterface::class)
         ->get($pool ?? 'default')
         ->push($job, $delay ?? 0);
 }

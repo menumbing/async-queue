@@ -23,6 +23,7 @@ use Hyperf\Contract\PackerInterface;
 use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\Coroutine\Concurrent;
 use Hyperf\Process\ProcessManager;
+use Menumbing\Contract\AsyncQueue\FailedQueueRecorderInterface;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Throwable;
@@ -35,14 +36,20 @@ abstract class Driver implements DriverInterface
 
     protected ?EventDispatcherInterface $event = null;
 
+    protected FailedQueueRecorderInterface $failedQueueRecorder;
+
     protected ?Concurrent $concurrent = null;
 
     protected int $lengthCheckCount = 500;
+
+    protected string $pool;
 
     public function __construct(protected ContainerInterface $container, protected array $config)
     {
         $this->packer = $container->get($config['packer'] ?? PhpSerializerPacker::class);
         $this->event = $container->get(EventDispatcherInterface::class);
+        $this->failedQueueRecorder = $container->get(FailedQueueRecorderInterface::class);
+        $this->pool = $this->config['pool'];
 
         $concurrentLimit = $config['concurrent']['limit'] ?? null;
         if ($concurrentLimit && is_numeric($concurrentLimit)) {
@@ -119,11 +126,17 @@ abstract class Driver implements DriverInterface
                     } else {
                         $this->event?->dispatch(new FailedHandle($message, $ex));
                         $this->fail($data);
+                        $this->recordFailedMessage($message->getId(), $data, $ex);
                         $message->job()->fail($ex);
                     }
                 }
             }
         };
+    }
+
+    protected function recordFailedMessage(string $id, mixed $data, Throwable $exception): void
+    {
+        $this->failedQueueRecorder->record($id, $this->pool, (string) $data, $exception);
     }
 
     /**

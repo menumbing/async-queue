@@ -17,18 +17,26 @@ use Hyperf\AsyncQueue\Event\BeforeHandle;
 use Hyperf\AsyncQueue\Event\Event;
 use Hyperf\AsyncQueue\Event\FailedHandle;
 use Hyperf\AsyncQueue\Event\RetryHandle;
+use Hyperf\Contract\ConfigInterface;
+use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\Event\Contract\ListenerInterface;
-use Hyperf\Logger\LoggerFactory;
 use Psr\Container\ContainerInterface;
-use Psr\Log\LoggerInterface;
 
 class QueueHandleListener implements ListenerInterface
 {
-    protected LoggerInterface $logger;
+    protected StdoutLoggerInterface $logger;
+
+    protected array $debugs = [];
 
     public function __construct(ContainerInterface $container)
     {
-        $this->logger = $container->get(LoggerFactory::class)->get('queue');
+        $this->logger = $container->get(StdoutLoggerInterface::class);
+        $this->debugs = $container->get(ConfigInterface::class)->get('async_queue.debug', [
+            'before' => false,
+            'after' => false,
+            'failed' => false,
+            'retry' => false,
+        ]);
     }
 
     public function listen(): array
@@ -46,26 +54,40 @@ class QueueHandleListener implements ListenerInterface
         if ($event instanceof Event && $event->getMessage()->job()) {
             $job = $event->getMessage()->job();
             $jobClass = get_class($job);
+
             if ($job instanceof AnnotationJob) {
                 $jobClass = sprintf('Job[%s@%s]', $job->class, $job->method);
             }
+
             $date = date('Y-m-d H:i:s');
 
-            switch (true) {
-                case $event instanceof BeforeHandle:
-                    $this->logger->info(sprintf('[%s] Processing %s.', $date, $jobClass));
-                    break;
-                case $event instanceof AfterHandle:
-                    $this->logger->info(sprintf('[%s] Processed %s.', $date, $jobClass));
-                    break;
-                case $event instanceof FailedHandle:
-                    $this->logger->error(sprintf('[%s] Failed %s.', $date, $jobClass));
-                    $this->logger->error((string) $event->getThrowable());
-                    break;
-                case $event instanceof RetryHandle:
-                    $this->logger->warning(sprintf('[%s] Retried %s.', $date, $jobClass));
-                    break;
+            if ($event instanceof BeforeHandle && $this->isEnableDebug('before')) {
+                $this->logger->info(sprintf('[%s] Processing %s.', $date, $jobClass));
+
+                return;
+            }
+
+            if ($event instanceof AfterHandle && $this->isEnableDebug('after')) {
+                $this->logger->info(sprintf('[%s] Processed %s.', $date, $jobClass));
+
+                return;
+            }
+
+            if ($event instanceof FailedHandle && $this->isEnableDebug('failed')) {
+                $this->logger->error(sprintf('[%s] Failed %s.', $date, $jobClass));
+                $this->logger->error( $event->getThrowable()->getMessage());
+
+                return;
+            }
+
+            if ($event instanceof RetryHandle && $this->isEnableDebug('retry')) {
+                $this->logger->warning(sprintf('[%s] Retried %s.', $date, $jobClass));
             }
         }
+    }
+
+    protected function isEnableDebug(string $debug): bool
+    {
+        return $this->debugs[$debug] ?? false;
     }
 }

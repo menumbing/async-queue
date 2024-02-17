@@ -1,49 +1,47 @@
 <?php
 
 declare(strict_types=1);
-/**
- * This file is part of Hyperf.
- *
- * @link     https://www.hyperf.io
- * @document https://hyperf.wiki
- * @contact  group@hyperf.io
- * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
- */
+
 namespace Hyperf\AsyncQueue\Command;
 
 use Hyperf\AsyncQueue\Driver\DriverFactory;
-use Hyperf\Command\Command as HyperfCommand;
+use Hyperf\AsyncQueue\Driver\DriverFactoryInterface;
+use Hyperf\Command\Command;
+use Menumbing\Contract\AsyncQueue\FailedQueueRecorderInterface;
 use Psr\Container\ContainerInterface;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputOption;
 
-class ReloadFailedMessageCommand extends HyperfCommand
+/**
+ * @author  Iqbal Maulana <iq.bluejack@gmail.com>
+ */
+class ReloadFailedMessageCommand extends Command
 {
-    protected ContainerInterface $container;
+    protected string $description = 'Reload specific failed message into waiting queue.';
 
-    public function __construct(ContainerInterface $container)
+    protected ?string $signature = 'queue:reload {id : The failed message id}';
+
+    public function __construct(protected ContainerInterface $container)
     {
-        $this->container = $container;
-        parent::__construct('queue:reload');
+        parent::__construct();
     }
 
-    public function handle()
+    public function handle(): void
     {
-        $name = $this->input->getArgument('name');
-        $queue = $this->input->getOption('queue');
+        $messageId = $this->argument('id');
 
-        $factory = $this->container->get(DriverFactory::class);
-        $driver = $factory->get($name);
+        $failedRecorder = $this->container->get(FailedQueueRecorderInterface::class);
 
-        $num = $driver->reload($queue);
+        if (null === $failedMessage = $failedRecorder->find($messageId)) {
+            $this->error(sprintf('Failed message with id "%s" is not found.', $messageId));
 
-        $this->output->writeln(sprintf('<fg=green>Reload %d failed message into waiting queue.</>', $num));
-    }
+            return;
+        }
 
-    protected function configure()
-    {
-        $this->setDescription('Reload all failed message into waiting queue.');
-        $this->addArgument('name', InputArgument::OPTIONAL, 'The name of queue.', 'default');
-        $this->addOption('queue', 'Q', InputOption::VALUE_OPTIONAL, 'The channel name of queue.');
+        $factory = $this->container->get(DriverFactoryInterface::class);
+        $driver = $factory->get($failedMessage->pool);
+
+        $driver->reload($failedMessage->payload);
+        $failedRecorder->forget($failedMessage->id);
+
+        $this->info(sprintf('Reload failed message with id "%s" into waiting queue.', $failedMessage->id));
     }
 }

@@ -11,11 +11,10 @@ declare(strict_types=1);
  */
 namespace Hyperf\AsyncQueue\Command;
 
-use Hyperf\AsyncQueue\Driver\DriverFactory;
 use Hyperf\Command\Command as HyperfCommand;
+use Menumbing\Contract\AsyncQueue\FailedQueueRecorderInterface;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputOption;
 
 class FlushFailedMessageCommand extends HyperfCommand
 {
@@ -27,23 +26,26 @@ class FlushFailedMessageCommand extends HyperfCommand
         parent::__construct('queue:flush');
     }
 
-    public function handle()
+    public function handle(): void
     {
-        $name = $this->input->getArgument('name');
-        $queue = $this->input->getOption('queue');
+        $pool = $this->input->getOption('pool');
 
-        $factory = $this->container->get(DriverFactory::class);
-        $driver = $factory->get($name);
+        $recorder = $this->container->get(FailedQueueRecorderInterface::class);
 
-        $driver->flush($queue);
+        $num = $recorder->flush($pool);
 
-        $this->output->writeln('<fg=red>Flush all message from failed queue.</>');
+        if (!$num) {
+            $this->error('There is no failed messages to flush.');
+
+            return;
+        }
+
+        $this->info(sprintf('Flush %d messages from failed queue.', $num));
     }
 
-    protected function configure()
+    protected function configure(): void
     {
         $this->setDescription('Delete all message from failed queue.');
-        $this->addArgument('name', InputArgument::OPTIONAL, 'The name of queue.', 'default');
-        $this->addOption('queue', 'Q', InputOption::VALUE_OPTIONAL, 'The channel name of queue.');
+        $this->addOption('pool', 'P', InputArgument::OPTIONAL, 'The pool of queue.', null);
     }
 }

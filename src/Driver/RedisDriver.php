@@ -17,6 +17,7 @@ use Hyperf\AsyncQueue\JobMessage;
 use Hyperf\AsyncQueue\MessageInterface;
 use Hyperf\Redis\RedisFactory;
 use Hyperf\Redis\RedisProxy;
+use Hyperf\Stringable\Str;
 use Psr\Container\ContainerInterface;
 
 use function Hyperf\Support\make;
@@ -56,7 +57,7 @@ class RedisDriver extends Driver
 
     public function push(JobInterface $job, int $delay = 0): bool
     {
-        $message = make(JobMessage::class, [$job]);
+        $message = make(JobMessage::class, [$job, (string) Str::uuid(), $this->pool]);
         $data = $this->packer->pack($message);
 
         if ($delay === 0) {
@@ -66,9 +67,8 @@ class RedisDriver extends Driver
         return (bool) $this->redis->zAdd($this->channel->getDelayed(), time() + $delay, $data);
     }
 
-    public function delete(JobInterface $job): bool
+    public function delete(MessageInterface $message): bool
     {
-        $message = make(JobMessage::class, [$job]);
         $data = $this->packer->pack($message);
 
         return (bool) $this->redis->zRem($this->channel->getDelayed(), $data);
@@ -103,13 +103,18 @@ class RedisDriver extends Driver
 
     public function fail(mixed $data): bool
     {
-        if ($this->remove($data)) {
-            return (bool) $this->redis->lPush($this->channel->getFailed(), (string) $data);
-        }
-        return false;
+        return $this->remove($data);
     }
 
-    public function reload(string $queue = null): int
+    public function reload(mixed $data): bool
+    {
+        /** @var MessageInterface $message */
+        $message = $this->packer->unpack($data);
+
+        return $this->push($message->job());
+    }
+
+    public function reloadAll(string $queue = null): int
     {
         $channel = $this->channel->getFailed();
         if ($queue) {
@@ -142,7 +147,7 @@ class RedisDriver extends Driver
         return [
             'waiting' => $this->redis->lLen($this->channel->getWaiting()),
             'delayed' => $this->redis->zCard($this->channel->getDelayed()),
-            'failed' => $this->redis->lLen($this->channel->getFailed()),
+            'failed' => $this->failedQueueRecorder->count(),
             'timeout' => $this->redis->lLen($this->channel->getTimeout()),
         ];
     }

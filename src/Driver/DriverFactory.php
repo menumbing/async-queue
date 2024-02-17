@@ -17,7 +17,7 @@ use Psr\Container\ContainerInterface;
 
 use function Hyperf\Support\make;
 
-class DriverFactory
+class DriverFactory implements DriverFactoryInterface
 {
     /**
      * @var DriverInterface[]
@@ -33,7 +33,7 @@ class DriverFactory
     {
         $config = $container->get(ConfigInterface::class);
 
-        $this->configs = $config->get('async_queue', []);
+        $this->configs = $config->get('async_queue.pools', []);
 
         foreach ($this->configs as $key => $item) {
             $driverClass = $item['driver'];
@@ -42,7 +42,7 @@ class DriverFactory
                 throw new InvalidDriverException(sprintf('[Error] class %s is invalid.', $driverClass));
             }
 
-            $driver = make($driverClass, ['config' => $item]);
+            $driver = make($driverClass, ['config' => [...$item, 'pool' => $key]]);
             if (! $driver instanceof DriverInterface) {
                 throw new InvalidDriverException(sprintf('[Error] class %s is not instanceof %s.', $driverClass, DriverInterface::class));
             }

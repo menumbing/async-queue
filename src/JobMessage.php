@@ -18,7 +18,7 @@ class JobMessage implements MessageInterface
 {
     protected int $attempts = 0;
 
-    public function __construct(protected JobInterface $job)
+    public function __construct(protected JobInterface $job, protected ?string $id = null, protected ?string $pool = null)
     {
     }
 
@@ -32,6 +32,8 @@ class JobMessage implements MessageInterface
         return [
             $this->job,  // Compatible with old version, will be removed at v3.2
             $this->attempts,  // Compatible with old version, will be removed at v3.2
+            'id' => $this->id,
+            'pool' => $this->pool,
             'job' => $this->job,
             'attempts' => $this->attempts,
         ];
@@ -52,8 +54,20 @@ class JobMessage implements MessageInterface
             $job = $job->uncompress();
         }
 
+        $this->id = $data['id'] ?? null;
+        $this->pool = $data['pool'] ?? null;
         $this->job = $job;
         $this->attempts = $data['attempts'];
+    }
+
+    public function getId(): string
+    {
+        return $this->id;
+    }
+
+    public function getPool(): string
+    {
+        return $this->pool;
     }
 
     public function job(): JobInterface

@@ -11,7 +11,7 @@ declare(strict_types=1);
  */
 namespace Hyperf\AsyncQueue\Process;
 
-use Hyperf\AsyncQueue\Driver\DriverFactory;
+use Hyperf\AsyncQueue\Driver\DriverFactoryInterface;
 use Hyperf\AsyncQueue\Driver\DriverInterface;
 use Hyperf\Process\AbstractProcess;
 use Psr\Container\ContainerInterface;
@@ -28,7 +28,7 @@ class ConsumerProcess extends AbstractProcess
     {
         parent::__construct($container);
 
-        $factory = $this->container->get(DriverFactory::class);
+        $factory = $this->container->get(DriverFactoryInterface::class);
         $this->driver = $factory->get($this->queue);
         $this->config = $factory->getConfig($this->queue);
 

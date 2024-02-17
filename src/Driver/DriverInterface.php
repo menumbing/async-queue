@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Hyperf\AsyncQueue\Driver;
 
 use Hyperf\AsyncQueue\JobInterface;
+use Hyperf\AsyncQueue\MessageInterface;
 
 interface DriverInterface
 {
@@ -23,7 +24,7 @@ interface DriverInterface
     /**
      * Delete a delay job to queue.
      */
-    public function delete(JobInterface $job): bool;
+    public function delete(MessageInterface $message): bool;
 
     /**
      * Pop a job from queue.
@@ -45,10 +46,12 @@ interface DriverInterface
      */
     public function consume(): void;
 
+    public function reload(mixed $data): bool;
+
     /**
-     * Reload failed message into waiting queue.
+     * Retry all failed message into waiting queue.
      */
-    public function reload(string $queue = null): int;
+    public function reloadAll(string $queue = null): int;
 
     /**
      * Delete all failed message from failed queue.
