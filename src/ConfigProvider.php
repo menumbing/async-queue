@@ -21,6 +21,7 @@ use Hyperf\AsyncQueue\Driver\DriverFactoryInterface;
 use Hyperf\AsyncQueue\Failed\FailedQueueRecorderFactory;
 use Hyperf\AsyncQueue\Listener\QueueHandleListener;
 use Hyperf\AsyncQueue\Listener\QueueLengthListener;
+use Hyperf\AsyncQueue\Listener\RegisterProcessListener;
 use Hyperf\AsyncQueue\Listener\ReloadChannelListener;
 use Menumbing\Contract\AsyncQueue\FailedQueueRecorderInterface;
 
@@ -37,6 +38,7 @@ class ConfigProvider
                 FailedQueueRecorderInterface::class => FailedQueueRecorderFactory::class,
             ],
             'listeners' => [
+                RegisterProcessListener::class => 99,
                 QueueHandleListener::class,
                 ReloadChannelListener::class,
             ],

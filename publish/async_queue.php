@@ -15,6 +15,7 @@ return [
     'pools' => [
         'default' => [
             'driver' => RedisDriver::class,
+            'auto_register_process' => true,
             'redis' => [
                 'pool' => 'default',
             ],
