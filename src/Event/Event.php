@@ -15,12 +15,17 @@ use Hyperf\AsyncQueue\MessageInterface;
 
 class Event
 {
-    public function __construct(protected MessageInterface $message)
+    public function __construct(protected MessageInterface $message, protected string $pool)
     {
     }
 
     public function getMessage(): MessageInterface
     {
         return $this->message;
+    }
+
+    public function getPool(): string
+    {
+        return $this->pool;
     }
 }

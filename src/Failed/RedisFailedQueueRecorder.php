@@ -99,7 +99,11 @@ class RedisFailedQueueRecorder implements FailedQueueRecorderInterface
 
     protected function get(string $id): ?object
     {
-        return (object) $this->packer->unpack($this->redis->get($id));
+        if ($data = $this->redis->get($id)) {
+            return (object) $this->packer->unpack($this->redis->get($id));
+        }
+
+        return null;
     }
 
     protected function scan(?string $pool = null): Generator

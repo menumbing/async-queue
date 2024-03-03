@@ -16,9 +16,9 @@ use Throwable;
 
 class FailedHandle extends Event
 {
-    public function __construct(MessageInterface $message, protected Throwable $throwable)
+    public function __construct(MessageInterface $message, protected Throwable $throwable, protected string $pool)
     {
-        parent::__construct($message);
+        parent::__construct($message, $this->pool);
     }
 
     public function getThrowable(): Throwable

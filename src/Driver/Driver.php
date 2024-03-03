@@ -95,6 +95,11 @@ abstract class Driver implements DriverInterface
         }
     }
 
+    public function recordFailedMessage(string $id, mixed $data, Throwable $exception): void
+    {
+        $this->failedQueueRecorder->record($id, $this->pool, (string) $data, $exception);
+    }
+
     protected function checkQueueLength(): void
     {
         $info = $this->info();
@@ -112,19 +117,19 @@ abstract class Driver implements DriverInterface
         return function () use ($data, $message) {
             try {
                 if ($message instanceof MessageInterface) {
-                    $this->event?->dispatch(new BeforeHandle($message));
+                    $this->event?->dispatch(new BeforeHandle($message, $this->pool));
                     $message->job()->handle();
-                    $this->event?->dispatch(new AfterHandle($message));
+                    $this->event?->dispatch(new AfterHandle($message, $this->pool));
                 }
 
                 $this->ack($data);
             } catch (Throwable $ex) {
                 if (isset($message, $data)) {
                     if ($message->attempts() && $this->remove($data)) {
-                        $this->event?->dispatch(new RetryHandle($message, $ex));
+                        $this->event?->dispatch(new RetryHandle($message, $ex, $this->pool));
                         $this->retry($message);
                     } else {
-                        $this->event?->dispatch(new FailedHandle($message, $ex));
+                        $this->event?->dispatch(new FailedHandle($message, $ex, $this->pool));
                         $this->fail($data);
                         $this->recordFailedMessage($message->getId(), $data, $ex);
                         $message->job()->fail($ex);
@@ -132,11 +137,6 @@ abstract class Driver implements DriverInterface
                 }
             }
         };
-    }
-
-    protected function recordFailedMessage(string $id, mixed $data, Throwable $exception): void
-    {
-        $this->failedQueueRecorder->record($id, $this->pool, (string) $data, $exception);
     }
 
     /**

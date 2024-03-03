@@ -56,7 +56,7 @@ class QueueHandleListener implements ListenerInterface
             $jobClass = get_class($job);
 
             if ($job instanceof AnnotationJob) {
-                $jobClass = sprintf('Job[%s@%s]', $job->class, $job->method);
+                $jobClass = sprintf('Job[%s@%s] on pool [%s]', $job->class, $job->method, $event->getPool());
             }
 
             $date = date('Y-m-d H:i:s');

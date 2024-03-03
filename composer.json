@@ -27,6 +27,7 @@
         "psr/log": "^3.0"
     },
     "suggest": {
+        "hyperf/amqp": "Required to use amqp driver.",
         "hyperf/database": "Required to use database failed recorder.",
         "hyperf/di": "Required to use annotations.",
         "hyperf/event": "Required to dispatch a event.",
