@@ -14,8 +14,8 @@ class CreateFailedMessagesTable extends Migration
         Schema::create('failed_messages', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('pool', 50)->index();
-            $table->text('payload');
-            $table->text('exception');
+            $table->longText('payload');
+            $table->longText('exception');
             $table->dateTime('failed_at')->index();
         });
     }
