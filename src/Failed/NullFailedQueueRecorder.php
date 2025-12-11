@@ -37,7 +37,8 @@ class NullFailedQueueRecorder implements FailedQueueRecorderInterface
         return true;
     }
 
-    public function flush(?string $pool = null): void
+    public function flush(?string $pool = null): int
     {
+        return 0;
     }
 }

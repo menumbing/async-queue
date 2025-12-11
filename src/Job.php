@@ -19,6 +19,8 @@ abstract class Job implements JobInterface, CompressInterface, UnCompressInterfa
 {
     protected int $maxAttempts = 0;
 
+    protected array $context = [];
+
     public function fail(Throwable $e): void
     {
     }
@@ -53,6 +55,18 @@ abstract class Job implements JobInterface, CompressInterface, UnCompressInterfa
                 $this->{$key} = $value->compress();
             }
         }
+
+        return $this;
+    }
+
+    public function getContext(): array
+    {
+        return $this->context;
+    }
+
+    public function withContext(array $context): static
+    {
+        $this->context = $context;
 
         return $this;
     }

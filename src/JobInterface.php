@@ -25,4 +25,8 @@ interface JobInterface
     public function setMaxAttempts(int $maxAttempts): static;
 
     public function getMaxAttempts(): int;
+
+    public function getContext(): array;
+
+    public function withContext(array $context): static;
 }

@@ -13,7 +13,7 @@ namespace Hyperf\AsyncQueue\Aspect;
 
 use Hyperf\AsyncQueue\Annotation\AsyncQueueMessage;
 use Hyperf\AsyncQueue\AnnotationJob;
-use Hyperf\AsyncQueue\Driver\DriverFactoryInterface;
+use Hyperf\AsyncQueue\Driver\DriverManager;
 use Hyperf\AsyncQueue\Environment;
 use Hyperf\Di\Aop\AbstractAspect;
 use Hyperf\Di\Aop\ProceedingJoinPoint;
@@ -27,8 +27,10 @@ class AsyncQueueAspect extends AbstractAspect
         AsyncQueueMessage::class,
     ];
 
-    public function __construct(protected ContainerInterface $container)
-    {
+    public function __construct(
+        protected ContainerInterface $container,
+        protected DriverManager $driverManager,
+    ) {
     }
 
     public function process(ProceedingJoinPoint $proceedingJoinPoint)
@@ -64,10 +66,10 @@ class AsyncQueueAspect extends AbstractAspect
             $maxAttempts = $annotation->maxAttempts;
         }
 
-        $factory = $this->container->get(DriverFactoryInterface::class);
-        $driver = $factory->get($pool);
-
-        $job = make(AnnotationJob::class, [$class, $method, $arguments, $maxAttempts]);
-        $driver->push($job, $delay);
+        $this->driverManager->push(
+            make(AnnotationJob::class, [$class, $method, $arguments, $maxAttempts]),
+            $delay,
+            $pool,
+        );
     }
 }

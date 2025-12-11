@@ -11,11 +11,10 @@ declare(strict_types=1);
  */
 namespace Hyperf\AsyncQueue\Driver;
 
-use Hyperf\AsyncQueue\Event\AfterHandle;
-use Hyperf\AsyncQueue\Event\BeforeHandle;
-use Hyperf\AsyncQueue\Event\FailedHandle;
+use Hyperf\AsyncQueue\Enum\Result;
 use Hyperf\AsyncQueue\Event\QueueLength;
-use Hyperf\AsyncQueue\Event\RetryHandle;
+use Hyperf\AsyncQueue\Exception\JobHandlingException;
+use Hyperf\AsyncQueue\Handler\JobHandler;
 use Hyperf\AsyncQueue\MessageInterface;
 use Hyperf\Codec\Packer\PhpSerializerPacker;
 use Hyperf\Collection\Arr;
@@ -34,6 +33,8 @@ abstract class Driver implements DriverInterface
 {
     protected PackerInterface $packer;
 
+    protected JobHandler $jobHandler;
+
     protected ?EventDispatcherInterface $event = null;
 
     protected FailedQueueRecorderInterface $failedQueueRecorder;
@@ -47,6 +48,7 @@ abstract class Driver implements DriverInterface
     public function __construct(protected ContainerInterface $container, protected array $config)
     {
         $this->packer = $container->get($config['packer'] ?? PhpSerializerPacker::class);
+        $this->jobHandler = $this->container->get(JobHandler::class);
         $this->event = $container->get(EventDispatcherInterface::class);
         $this->failedQueueRecorder = $container->get(FailedQueueRecorderInterface::class);
         $this->pool = $this->config['pool'];
@@ -115,26 +117,24 @@ abstract class Driver implements DriverInterface
     protected function getCallback($data, $message): callable
     {
         return function () use ($data, $message) {
+            if (false === $message instanceof MessageInterface) {
+                $this->ack($data);
+
+                return;
+            }
+
             try {
-                if ($message instanceof MessageInterface) {
-                    $this->event?->dispatch(new BeforeHandle($message, $this->pool));
-                    $message->job()->handle();
-                    $this->event?->dispatch(new AfterHandle($message, $this->pool));
+                $this->jobHandler->handle($message);
+                $this->ack($data);
+            } catch (JobHandlingException $e) {
+                if (Result::NACK === $e->result) {
+                    $this->retry($message);
+
+                    return;
                 }
 
-                $this->ack($data);
-            } catch (Throwable $ex) {
-                if (isset($message, $data)) {
-                    if ($message->attempts() && $this->remove($data)) {
-                        $this->event?->dispatch(new RetryHandle($message, $ex, $this->pool));
-                        $this->retry($message);
-                    } else {
-                        $this->event?->dispatch(new FailedHandle($message, $ex, $this->pool));
-                        $this->fail($data);
-                        $this->recordFailedMessage($message->getId(), $data, $ex);
-                        $message->job()->fail($ex);
-                    }
-                }
+                $this->fail($data);
+                $this->recordFailedMessage($message->getId(), $data, $e);
             }
         };
     }

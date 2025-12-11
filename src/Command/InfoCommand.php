@@ -11,28 +11,20 @@ declare(strict_types=1);
  */
 namespace Hyperf\AsyncQueue\Command;
 
-use Hyperf\AsyncQueue\Driver\DriverFactoryInterface;
+use Hyperf\AsyncQueue\Driver\DriverManager;
 use Hyperf\Command\Command as HyperfCommand;
-use Psr\Container\ContainerInterface;
 use Symfony\Component\Console\Input\InputArgument;
 
 class InfoCommand extends HyperfCommand
 {
-    protected ContainerInterface $container;
-
-    public function __construct(ContainerInterface $container)
+    public function __construct(protected DriverManager $driverManager)
     {
-        $this->container = $container;
         parent::__construct('queue:info');
     }
 
     public function handle()
     {
-        $pool = $this->input->getArgument('pool');
-        $factory = $this->container->get(DriverFactoryInterface::class);
-        $driver = $factory->get($pool);
-
-        $info = $driver->info();
+        $info = $this->driverManager->info($this->input->getArgument('pool'));
         foreach ($info as $key => $count) {
             $this->info(sprintf('%s count is %d', $key, $count));
         }
