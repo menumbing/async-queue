@@ -13,6 +13,7 @@ use Hyperf\Amqp\Message\Type;
 use Hyperf\Amqp\Producer;
 use Hyperf\AsyncQueue\Driver\ChannelConfig;
 use Hyperf\AsyncQueue\Driver\Driver;
+use Hyperf\AsyncQueue\Handler\JobHandler;
 use Hyperf\AsyncQueue\JobInterface;
 use Hyperf\AsyncQueue\JobMessage;
 use Hyperf\AsyncQueue\MessageInterface;
@@ -33,6 +34,8 @@ class AmqpDriverAdapter extends Driver
     protected Consumer $consumer;
 
     protected ChannelConfig $channel;
+
+    protected JobHandler $jobHandler;
 
     protected Type $exchangeType;
 
@@ -57,6 +60,7 @@ class AmqpDriverAdapter extends Driver
             $container->get(LoggerInterface::class),
             $config
         );
+        $this->jobHandler = $container->get(JobHandler::class);
 
         $appName = $container->get(ConfigInterface::class)->get('app_name', 'hyperf');
 
@@ -158,6 +162,7 @@ class AmqpDriverAdapter extends Driver
         $consumerMessage = new JobConsumerMessage(
             $this,
             $this->packer,
+            $this->jobHandler,
             $this->event,
             $this->pool
         );

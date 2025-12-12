@@ -13,11 +13,14 @@ use Hyperf\AsyncQueue\Event\AfterHandle;
 use Hyperf\AsyncQueue\Event\BeforeHandle;
 use Hyperf\AsyncQueue\Event\FailedHandle;
 use Hyperf\AsyncQueue\Event\RetryHandle;
+use Hyperf\AsyncQueue\Exception\JobHandlingException;
+use Hyperf\AsyncQueue\Handler\JobHandler;
 use Hyperf\AsyncQueue\MessageInterface;
 use Hyperf\Contract\PackerInterface;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPTable;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Hyperf\AsyncQueue\Enum\Result as QueueResult;
 
 /**
  * @author  Iqbal Maulana <iq.bluejack@gmail.com>
@@ -31,6 +34,7 @@ class JobConsumerMessage extends ConsumerMessage
     public function __construct(
         protected AmqpDriverAdapter $driver,
         protected PackerInterface $packer,
+        protected JobHandler $jobHandler,
         protected ?EventDispatcherInterface $event,
         protected ?string $queuePool
     ) {
@@ -42,7 +46,16 @@ class JobConsumerMessage extends ConsumerMessage
         if ($data instanceof MessageInterface) {
             try {
                 return $this->consume($data);
-            } catch (\Throwable $throwable) {
+            } catch(JobHandlingException $e) {
+                if (QueueResult::NACK === $e->result) {
+                    $this->driver->retry($data);
+
+                    return Result::ACK;
+                }
+
+                $this->driver->recordFailedMessage($data->getId(), $message->getBody(), $e);
+            }
+            catch (\Throwable $throwable) {
                 if ($data->attempts()) {
                     $this->event?->dispatch(new RetryHandle($data, $throwable, $this->queuePool));
                     $this->driver->retry($data);
@@ -50,20 +63,22 @@ class JobConsumerMessage extends ConsumerMessage
                     return Result::ACK;
                 }
 
-                $this->event?->dispatch(new FailedHandle($data, $throwable, $this->queuePool));
                 $this->driver->recordFailedMessage($data->getId(), $message->getBody(), $throwable);
-                $data->job()->fail($throwable);
             }
         }
 
         return Result::DROP;
     }
 
+    /**
+     * @param MessageInterface $data
+     *
+     * @return Result
+     * @throws JobHandlingException
+     */
     public function consume($data): Result
     {
-        $this->event?->dispatch(new BeforeHandle($data, $this->queuePool));
-        $data->job()->handle();
-        $this->event?->dispatch(new AfterHandle($data, $this->queuePool));
+        $this->jobHandler->handle($data);
 
         return Result::ACK;
     }
