@@ -11,6 +11,8 @@ declare(strict_types=1);
  */
 use Hyperf\AsyncQueue\Driver\RedisDriver;
 
+use function Hyperf\Support\env;
+
 return [
     'pools' => [
         'default' => [
@@ -35,6 +37,7 @@ return [
         'recorder' => Hyperf\AsyncQueue\Failed\RedisFailedQueueRecorder::class,
         'options' => [
             'pool' => 'default',
+            'group' => env('APP_NAME', 'hyperf'),
         ],
     ],
 

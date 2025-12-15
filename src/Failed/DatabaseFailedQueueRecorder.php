@@ -21,8 +21,11 @@ class DatabaseFailedQueueRecorder implements FailedQueueRecorderInterface
 
     protected ?string $connection;
 
+    protected ?string $group;
+
     public function __construct(protected ContainerInterface $container, array $options = [])
     {
+        $this->group = $options['group'] ?? null;
         $this->failedTable = $options['failed_table'] ?? 'failed_messages';
         $this->connection = $options['connection'] ?? null;
     }
@@ -31,6 +34,7 @@ class DatabaseFailedQueueRecorder implements FailedQueueRecorderInterface
     {
         $this->getTable()->insert([
             'id' => $id,
+            'group' => $this->group,
             'pool' => $pool,
             'payload' => $payload,
             'exception' => (string) $exception,
@@ -73,6 +77,10 @@ class DatabaseFailedQueueRecorder implements FailedQueueRecorderInterface
 
         if ($pool) {
             $table->where('pool', $pool);
+        }
+
+        if ($this->group) {
+            $table->where('group', $this->group);
         }
 
         return $table;

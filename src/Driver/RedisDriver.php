@@ -57,7 +57,7 @@ class RedisDriver extends Driver
 
     public function push(JobInterface $job, int $delay = 0): bool
     {
-        $message = make(JobMessage::class, [$job, (string) Str::uuid(), $this->pool]);
+        $message = make(JobMessage::class, [$job, (string) Str::uuidv7(), $this->pool]);
         $data = $this->packer->pack($message);
 
         if ($delay === 0) {

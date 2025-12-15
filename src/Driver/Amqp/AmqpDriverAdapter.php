@@ -76,7 +76,7 @@ class AmqpDriverAdapter extends Driver
 
     public function push(JobInterface $job, int $delay = 0): bool
     {
-        $message = make(JobMessage::class, [$job, (string) Str::uuid(), $this->pool]);
+        $message = make(JobMessage::class, [$job, (string) Str::uuidv7(), $this->pool]);
 
         return $this->producer->produce(
             $this->createProduceMessage($message, $delay),

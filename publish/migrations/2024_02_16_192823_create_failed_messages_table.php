@@ -13,6 +13,7 @@ class CreateFailedMessagesTable extends Migration
     {
         Schema::create('failed_messages', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            $table->string('group', 50)->index();
             $table->string('pool', 50)->index();
             $table->longText('payload');
             $table->longText('exception');

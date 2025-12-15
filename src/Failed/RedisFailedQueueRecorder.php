@@ -27,10 +27,13 @@ class RedisFailedQueueRecorder implements FailedQueueRecorderInterface
 
     protected string $prefix;
 
+    protected ?string $group;
+
     protected string $keyCollectorPrefix;
 
     public function __construct(protected ContainerInterface $container, array $options = [])
     {
+        $this->group = $options['group'] ?? null;
         $this->redis = $container->get(RedisFactory::class)->get($options['pool'] ?? 'default');
         $this->packer = $container->get($options['packer'] ?? PhpSerializerPacker::class);
         $this->prefix = $options['prefix'] ?? 'failed_messages';
@@ -141,11 +144,19 @@ class RedisFailedQueueRecorder implements FailedQueueRecorderInterface
 
     protected function getCollectorKey(string $pool): string
     {
+        if (null !== $this->group) {
+            return $this->group . '.' . $this->keyCollectorPrefix . ':' . $pool;
+        }
+
         return $this->keyCollectorPrefix . ':' . $pool;
     }
 
     protected function getKey(string $key): string
     {
+        if (null !== $this->group) {
+            return $this->group . '.' . $this->prefix . ':' . $key;
+        }
+
         return $this->prefix . ':' . $key;
     }
 }
