@@ -56,14 +56,14 @@ class RedisFailedQueueRecorder implements FailedQueueRecorderInterface
         $this->addKey($pool, $id);
     }
 
-    public function all(?string $pool = null): Generator
+    public function all(?string $pool = null, array $criteria = []): Generator
     {
         foreach ($this->scan($pool) as $id) {
             yield $this->get($this->getKey($id));
         }
     }
 
-    public function count(?string $pool = null): int
+    public function count(?string $pool = null, array $criteria = []): int
     {
         return (int) $this->redis->zCard($this->getCollectorKey($pool ?? static::ALL_POOLS));
     }
@@ -88,7 +88,7 @@ class RedisFailedQueueRecorder implements FailedQueueRecorderInterface
         return (bool) $this->redis->del($this->getKey($id));
     }
 
-    public function flush(?string $pool = null): int
+    public function flush(?string $pool = null, array $criteria = []): int
     {
         $num = 0;
         foreach ($this->scan($pool) as $id) {

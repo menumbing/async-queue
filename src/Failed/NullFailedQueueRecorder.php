@@ -17,12 +17,12 @@ class NullFailedQueueRecorder implements FailedQueueRecorderInterface
     {
     }
 
-    public function all(?string $pool = null): Generator
+    public function all(?string $pool = null, array $criteria = []): Generator
     {
         yield;
     }
 
-    public function count(?string $pool = null): int
+    public function count(?string $pool = null, array $criteria = []): int
     {
         return 0;
     }
@@ -37,7 +37,7 @@ class NullFailedQueueRecorder implements FailedQueueRecorderInterface
         return true;
     }
 
-    public function flush(?string $pool = null): int
+    public function flush(?string $pool = null, array $criteria = []): int
     {
         return 0;
     }

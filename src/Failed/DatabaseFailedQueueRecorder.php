@@ -32,31 +32,52 @@ class DatabaseFailedQueueRecorder implements FailedQueueRecorderInterface
 
     public function record(string $id, string $pool, string $payload, Throwable $exception): void
     {
-        $this->getTable()->insert([
-            'id' => $id,
-            'group' => $this->group,
-            'pool' => $pool,
-            'payload' => $payload,
-            'exception' => (string) $exception,
+        $this->getTable()->insert(array_filter([
+            'id'        => $id,
+            'group'     => $this->group,
+            'pool'      => $pool,
+            'payload'   => base64_encode($payload),
+            'exception' => (string)$exception,
             'failed_at' => (new DateTime())->format('Y-m-d H:i:s'),
-        ]);
+        ]));
     }
 
-    public function all(?string $pool = null): Generator
+    public function all(?string $pool = null, array $criteria = []): Generator
     {
-        foreach ($this->getTable($pool)->oldest('failed_at')->cursor() as $item) {
-            yield $item;
+        if (null === $query = $this->prepareRangeQuery($pool)) {
+            return new Generator();
+        }
+
+        $keys = [
+            'id',
+            'group',
+            'pool',
+            'payload',
+            'exception',
+            'failed_at',
+        ];
+
+        foreach ($query->cursor() as $item) {
+            yield $this->decode((object) array_combine($keys, $item));
         }
     }
 
-    public function count(?string $pool = null): int
+    public function count(?string $pool = null, array $criteria = []): int
     {
-        return $this->getTable($pool)->count();
+        if (null === $query = $this->prepareRangeQuery($pool)) {
+            return 0;
+        }
+
+        return $query->count();
     }
 
     public function find(string $id): ?object
     {
-        return $this->getTable()->find($id);
+        if ($message = $this->getTable()->find($id)) {
+            return $this->decode((object) $message);
+        }
+
+        return null;
     }
 
     public function forget(string $id): bool
@@ -64,9 +85,18 @@ class DatabaseFailedQueueRecorder implements FailedQueueRecorderInterface
         return $this->getTable()->delete($id) > 0;
     }
 
-    public function flush(?string $pool = null): int
+    public function flush(?string $pool = null, array $criteria = []): int
     {
         return $this->getTable($pool)->delete();
+    }
+
+    protected function decode(object $data): object
+    {
+        if (false !== $payload = base64_decode($data->payload ?? '', true)) {
+            $data->payload = $payload;
+        }
+
+        return $data;
     }
 
     protected function getTable(?string $pool = null): Builder
@@ -84,5 +114,17 @@ class DatabaseFailedQueueRecorder implements FailedQueueRecorderInterface
         }
 
         return $table;
+    }
+
+    protected function prepareRangeQuery(?string $pool): ?Builder
+    {
+        $firstFailedAt = $this->getTable($pool)->oldest('failed_at')->first()['failed_at'] ?? null;
+        $lastFailedAt = $this->getTable($pool)->latest('failed_at')->first()['failed_at'] ?? null;
+
+        if (!$firstFailedAt && !$lastFailedAt) {
+            return null;
+        }
+
+        return $this->getTable($pool)->whereBetween('failed_at', [$firstFailedAt, $lastFailedAt])->oldest('failed_at');
     }
 }
