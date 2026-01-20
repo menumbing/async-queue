@@ -49,6 +49,10 @@ class AmqpDriverAdapter extends Driver
 
     protected bool $rerouteFailed;
 
+    protected string $connection;
+
+    protected string $routingKey;
+
     public function __construct(ContainerInterface $container, array $config)
     {
         parent::__construct($container, $config);
@@ -70,6 +74,8 @@ class AmqpDriverAdapter extends Driver
         $this->retrySeconds = $config['retry_seconds'] ?? 10;
         $this->handleTimeout = $config['handle_timeout'] ?? 10;
         $this->maxMessages = $config['max_messages'] ?? 0;
+        $this->routingKey = $config['amqp']['routing_key'] ?? 'default';
+        $this->connection = $config['amqp']['pool'] ?? 'default';
 
         $this->channel = make(ChannelConfig::class, ['channel' => $config['channel'] ?? 'queue']);
     }
@@ -169,9 +175,10 @@ class AmqpDriverAdapter extends Driver
 
         $consumerMessage->setExchange($exchange);
         $consumerMessage->setType($this->exchangeType);
-        $consumerMessage->setRoutingKey($this->pool);
+        $consumerMessage->setRoutingKey($this->routingKey);
         $consumerMessage->setQueue($queue);
         $consumerMessage->setMaxConsumption($this->maxMessages);
+        $consumerMessage->setPoolName($this->connection);
 
         return $consumerMessage;
     }
@@ -182,19 +189,21 @@ class AmqpDriverAdapter extends Driver
 
         $consumerMessage->setExchange($exchange);
         $consumerMessage->setType($this->exchangeType);
-        $consumerMessage->setRoutingKey($this->pool);
+        $consumerMessage->setRoutingKey($this->routingKey);
         $consumerMessage->setQueue($queue);
+        $consumerMessage->setPoolName($this->connection);
 
         return $consumerMessage;
     }
 
     protected function createProduceMessage(MessageInterface $message, int $delay = 0): ProducerMessageInterface
     {
-        $producerMessage = new AmqpProduceMessage($message, $this->packer);
+        $producerMessage = (new AmqpProduceMessage($message, $this->packer));
 
         $producerMessage->setExchange($this->channel->getWaiting());
         $producerMessage->setType($this->exchangeType);
-        $producerMessage->setRoutingKey($this->pool);
+        $producerMessage->setRoutingKey($this->routingKey);
+        $producerMessage->setPoolName($this->connection);
 
         if ($delay > 0) {
             $producerMessage->setDelayMs($delay * 1000);

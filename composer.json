@@ -21,6 +21,7 @@
         "hyperf/process": "^3.1",
         "hyperf/redis": "^3.1",
         "hyperf/server": "^3.1",
+        "hyperf/stringable": "^3.1",
         "hyperf/support": "^3.1",
         "hyperf/utils": "^3.1",
         "menumbing/contracts": "^1.0",
