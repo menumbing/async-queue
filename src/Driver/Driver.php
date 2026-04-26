@@ -21,6 +21,7 @@ use Hyperf\Collection\Arr;
 use Hyperf\Contract\PackerInterface;
 use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\Coroutine\Concurrent;
+use Hyperf\Coroutine\Coroutine;
 use Hyperf\Process\ProcessManager;
 use Menumbing\Contract\AsyncQueue\FailedQueueRecorderInterface;
 use Psr\Container\ContainerInterface;
@@ -65,18 +66,39 @@ abstract class Driver implements DriverInterface
         $maxMessages = Arr::get($this->config, 'max_messages', 0);
 
         while (ProcessManager::isRunning()) {
+            $slotAcquired = false;
+
             try {
+                // Acquire concurrent slot BEFORE popping, ensuring jobs only
+                // move from waiting to reserved when there's processing capacity.
+                if ($this->concurrent) {
+                    $this->concurrent->getChannel()->push(true);
+                    $slotAcquired = true;
+                }
+
                 /** @var MessageInterface $message */
                 [$data, $message] = $this->pop();
 
                 if ($data === false) {
+                    if ($slotAcquired) {
+                        $this->concurrent->getChannel()->pop();
+                        $slotAcquired = false;
+                    }
                     continue;
                 }
 
                 $callback = $this->getCallback($data, $message);
 
                 if ($this->concurrent) {
-                    $this->concurrent->create($callback);
+                    $slotAcquired = false;
+                    Coroutine::create(function () use ($callback) {
+                        try {
+                            $callback();
+                        } catch (Throwable) {
+                        } finally {
+                            $this->concurrent->getChannel()->pop();
+                        }
+                    });
                 } else {
                     parallel([$callback]);
                 }
@@ -89,6 +111,10 @@ abstract class Driver implements DriverInterface
                     break;
                 }
             } catch (Throwable $exception) {
+                if ($slotAcquired) {
+                    $this->concurrent->getChannel()->pop();
+                }
+
                 $logger = $this->container->get(StdoutLoggerInterface::class);
                 $logger->error((string) $exception);
             } finally {
@@ -128,6 +154,7 @@ abstract class Driver implements DriverInterface
                 $this->ack($data);
             } catch (JobHandlingException $e) {
                 if (Result::NACK === $e->result) {
+                    $this->remove($data);
                     $this->retry($message);
 
                     return;

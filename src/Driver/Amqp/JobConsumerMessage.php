@@ -9,9 +9,6 @@ use Hyperf\Amqp\Builder\QueueBuilder;
 use Hyperf\Amqp\Message\ConsumerMessage;
 use Hyperf\Amqp\Message\Type;
 use Hyperf\Amqp\Result;
-use Hyperf\AsyncQueue\Event\AfterHandle;
-use Hyperf\AsyncQueue\Event\BeforeHandle;
-use Hyperf\AsyncQueue\Event\FailedHandle;
 use Hyperf\AsyncQueue\Event\RetryHandle;
 use Hyperf\AsyncQueue\Exception\JobHandlingException;
 use Hyperf\AsyncQueue\Handler\JobHandler;
@@ -30,6 +27,12 @@ class JobConsumerMessage extends ConsumerMessage
     protected Type|string|null $delayType = null;
     protected ?string $failedExchange = null;
     protected ?string $failedRouteKey = null;
+    protected bool $useDelayedExchange = true;
+    protected ?int $prefetchCount = null;
+    protected bool $queueDurable = true;
+    protected bool $queueAutoDelete = false;
+    protected bool $exchangeAutoDelete = false;
+    protected array $queueArguments = [];
 
     public function __construct(
         protected AmqpDriverAdapter $driver,
@@ -90,6 +93,54 @@ class JobConsumerMessage extends ConsumerMessage
         return $this;
     }
 
+    public function setUseDelayedExchange(bool $useDelayedExchange): static
+    {
+        $this->useDelayedExchange = $useDelayedExchange;
+
+        if (! $useDelayedExchange) {
+            $this->type = $this->delayType instanceof Type ? $this->delayType->value : ($this->delayType ?? Type::DIRECT->value);
+        } else {
+            $this->type = 'x-delayed-message';
+        }
+
+        return $this;
+    }
+
+    public function setPrefetchCount(?int $prefetchCount): static
+    {
+        $this->prefetchCount = $prefetchCount;
+
+        return $this;
+    }
+
+    public function setQueueDurable(bool $queueDurable): static
+    {
+        $this->queueDurable = $queueDurable;
+
+        return $this;
+    }
+
+    public function setQueueAutoDelete(bool $queueAutoDelete): static
+    {
+        $this->queueAutoDelete = $queueAutoDelete;
+
+        return $this;
+    }
+
+    public function setExchangeAutoDelete(bool $exchangeAutoDelete): static
+    {
+        $this->exchangeAutoDelete = $exchangeAutoDelete;
+
+        return $this;
+    }
+
+    public function setQueueArguments(array $queueArguments): static
+    {
+        $this->queueArguments = $queueArguments;
+
+        return $this;
+    }
+
     public function reRouteFailed(string $exchange, string $destination): static
     {
         $this->failedExchange = $exchange;
@@ -100,18 +151,45 @@ class JobConsumerMessage extends ConsumerMessage
 
     public function unserialize(string $data)
     {
-        return $this->packer->unpack($data);
+        $payload = $data;
+
+        // Unwrap metadata envelope if present
+        $decoded = json_decode($data, true);
+        if (is_array($decoded) && isset($decoded['_meta'], $decoded['_payload'])) {
+            $payload = $decoded['_payload'];
+        }
+
+        return $this->packer->unpack($payload);
+    }
+
+    public function getQos(): ?array
+    {
+        if ($this->prefetchCount !== null) {
+            return [
+                'prefetch_size' => 0,
+                'prefetch_count' => $this->prefetchCount,
+                'global' => false,
+            ];
+        }
+
+        return parent::getQos();
     }
 
     public function getQueueBuilder(): QueueBuilder
     {
         $builder = parent::getQueueBuilder();
+        $builder->setDurable($this->queueDurable);
+        $builder->setAutoDelete($this->queueAutoDelete);
+
+        $arguments = $this->queueArguments;
 
         if (null !== $this->failedExchange && null !== $this->failedRouteKey) {
-            $builder->setArguments(new AMQPTable([
-                'x-dead-letter-exchange' => $this->failedExchange,
-                'x-dead-letter-routing-key' => $this->failedRouteKey,
-            ]));
+            $arguments['x-dead-letter-exchange'] = $this->failedExchange;
+            $arguments['x-dead-letter-routing-key'] = $this->failedRouteKey;
+        }
+
+        if (! empty($arguments)) {
+            $builder->setArguments(new AMQPTable($arguments));
         }
 
         return $builder;
@@ -119,10 +197,17 @@ class JobConsumerMessage extends ConsumerMessage
 
     public function getExchangeBuilder(): ExchangeBuilder
     {
-        $delayType = is_string($this->delayType) ? $this->delayType : $this->delayType->value;
+        $delayType = is_string($this->delayType) ? $this->delayType : ($this->delayType?->value ?? Type::DIRECT->value);
+
+        if (! $this->useDelayedExchange) {
+            return (new ExchangeBuilder())->setExchange($this->getExchange())
+                ->setType($delayType)
+                ->setAutoDelete($this->exchangeAutoDelete);
+        }
 
         return (new ExchangeBuilder())->setExchange($this->getExchange())
             ->setType($this->getType())
+            ->setAutoDelete($this->exchangeAutoDelete)
             ->setArguments(new AMQPTable(['x-delayed-type' => $delayType]));
     }
 }

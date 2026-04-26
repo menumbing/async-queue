@@ -13,7 +13,7 @@ namespace Hyperf\AsyncQueue\Driver;
 
 use Hyperf\AsyncQueue\Exception\InvalidQueueException;
 
-class ChannelConfig
+class ChannelConfig implements ChannelConfigInterface
 {
     protected string $channel;
 
@@ -52,7 +52,7 @@ class ChannelConfig
         $this->timeout = "{$channel}:timeout";
     }
 
-    public function get(string $queue)
+    public function get(string $queue): string
     {
         if (isset($this->{$queue}) && is_string($this->{$queue})) {
             return $this->{$queue};

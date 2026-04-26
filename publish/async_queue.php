@@ -9,9 +9,9 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
-use Hyperf\AsyncQueue\Driver\RedisDriver;
 
-use function Hyperf\Support\env;
+use Hyperf\AsyncQueue\Driver\RedisDriver;
+use Hyperf\AsyncQueue\Failed\NullFailedQueueRecorder;
 
 return [
     'pools' => [
@@ -21,7 +21,7 @@ return [
             'redis' => [
                 'pool' => 'default',
             ],
-            'channel' => '{queue}',
+            'channel' => 'queue',
             'timeout' => 2,
             'retry_seconds' => 5,
             'handle_timeout' => 10,
@@ -34,17 +34,13 @@ return [
     ],
 
     'failed' => [
-        'recorder' => Hyperf\AsyncQueue\Failed\RedisFailedQueueRecorder::class,
-        'options' => [
-            'pool' => 'default',
-            'group' => env('APP_NAME', 'hyperf'),
-        ],
+        'recorder' => NullFailedQueueRecorder::class,
     ],
 
     'debug' => [
-        'before' => false,
-        'after' => false,
-        'failed' => false,
-        'retry' => false,
+        'before' => true,
+        'after' => true,
+        'failed' => true,
+        'retry' => true,
     ]
 ];

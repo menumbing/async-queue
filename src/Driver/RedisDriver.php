@@ -26,7 +26,7 @@ class RedisDriver extends Driver
 {
     protected RedisProxy $redis;
 
-    protected ChannelConfig $channel;
+    protected ChannelConfigInterface $channel;
 
     /**
      * Max polling time.

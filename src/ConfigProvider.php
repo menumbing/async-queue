@@ -23,6 +23,7 @@ use Hyperf\AsyncQueue\Failed\FailedQueueRecorderFactory;
 use Hyperf\AsyncQueue\Handler\JobHandler;
 use Hyperf\AsyncQueue\Listener\QueueHandleListener;
 use Hyperf\AsyncQueue\Listener\QueueLengthListener;
+use Hyperf\AsyncQueue\Listener\QueueStatsListener;
 use Hyperf\AsyncQueue\Listener\RegisterProcessListener;
 use Hyperf\AsyncQueue\Listener\ReloadChannelListener;
 use Menumbing\Contract\AsyncQueue\FailedQueueRecorderInterface;
@@ -44,6 +45,7 @@ class ConfigProvider
             'listeners' => [
                 RegisterProcessListener::class => 99,
                 QueueHandleListener::class,
+                QueueStatsListener::class,
                 ReloadChannelListener::class,
             ],
             'commands' => [
