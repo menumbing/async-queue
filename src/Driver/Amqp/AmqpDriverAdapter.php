@@ -52,7 +52,7 @@ class AmqpDriverAdapter extends Driver
 
     protected ConnectionFactory $connectionFactory;
 
-    protected ?int $prefetchCount;
+    protected int $prefetchCount;
 
     protected bool $queueDurable;
 
@@ -87,7 +87,7 @@ class AmqpDriverAdapter extends Driver
         $this->maxMessages = $config['max_messages'] ?? 0;
         $this->connection = $config['amqp']['pool'] ?? 'default';
         $this->useDelayedExchange = $config['amqp']['use_delayed_exchange'] ?? true;
-        $this->prefetchCount = $config['amqp']['prefetch_count'] ?? null;
+        $this->prefetchCount = (int) ($config['concurrent']['limit'] ?? 1);
         $this->queueDurable = $config['amqp']['queue_durable'] ?? true;
         $this->queueAutoDelete = $config['amqp']['queue_auto_delete'] ?? false;
         $this->queueArguments = $config['amqp']['queue_arguments'] ?? [];
@@ -281,10 +281,7 @@ class AmqpDriverAdapter extends Driver
         $consumerMessage->setQueueAutoDelete($this->queueAutoDelete);
         $consumerMessage->setQueueArguments($this->queueArguments);
         $consumerMessage->setExchangeAutoDelete($this->exchangeAutoDelete);
-
-        if ($this->prefetchCount !== null) {
-            $consumerMessage->setPrefetchCount($this->prefetchCount);
-        }
+        $consumerMessage->setPrefetchCount($this->prefetchCount);
 
         return $consumerMessage;
     }

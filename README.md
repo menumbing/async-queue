@@ -125,9 +125,9 @@ Then configure a pool with the AMQP driver:
             // Set to false to use TTL + Dead Letter Queue approach instead
             'use_delayed_exchange' => true,
 
-            // QoS prefetch count (messages fetched per consumer at a time)
-            // null = use Hyperf default (1)
-            'prefetch_count' => null,
+            // QoS prefetch count — automatically set to concurrent.limit (default: 1)
+            // This ensures RabbitMQ only delivers as many messages as the consumer can handle concurrently
+            // 'prefetch_count' is not configurable; set concurrent.limit instead
 
             // Queue declaration options
             'queue_durable' => true,
@@ -168,7 +168,6 @@ Then configure a pool with the AMQP driver:
 | `amqp.exchange_type` | `Type` | `Type::DIRECT` | Exchange type: `DIRECT`, `TOPIC`, or `FANOUT` |
 | `amqp.reroute_failed` | `bool` | `false` | Route failed messages to a dedicated failed exchange/queue |
 | `amqp.use_delayed_exchange` | `bool` | `true` | Use `rabbitmq-delayed-message-exchange` plugin. Set `false` for TTL+DLQ approach |
-| `amqp.prefetch_count` | `int\|null` | `null` | QoS prefetch count. `null` uses Hyperf default (`1`) |
 | `amqp.queue_durable` | `bool` | `true` | Whether the queue survives broker restart |
 | `amqp.queue_auto_delete` | `bool` | `false` | Whether the queue is deleted when the last consumer disconnects |
 | `amqp.exchange_auto_delete` | `bool` | `false` | Whether exchanges are deleted when all bound queues are removed |
@@ -480,15 +479,15 @@ Failed messages are always recorded via the configured `FailedQueueRecorderInter
 
 ### QoS / Prefetch Count
 
-Control how many unacknowledged messages a consumer can hold:
+The AMQP driver automatically sets `prefetch_count` equal to `concurrent.limit` (default: `1`). This ensures RabbitMQ only delivers as many unacknowledged messages as the consumer can process concurrently.
 
 ```php
-'amqp' => [
-    'prefetch_count' => 5, // Fetch 5 messages at a time per consumer
+'concurrent' => [
+    'limit' => 10, // prefetch_count will also be 10
 ],
 ```
 
-When set to `null` (default), the Hyperf AMQP consumer default of `1` is used. Increasing this value can improve throughput when message processing is I/O-bound, but may reduce fairness across multiple consumers.
+There is no separate `amqp.prefetch_count` configuration — it is always derived from `concurrent.limit` to keep the two values in sync.
 
 ### Queue and Exchange Declaration Options
 
@@ -606,10 +605,21 @@ dispatch(new PushNotificationJob(...), pool: 'order');
 
 #### Message Metadata
 
-When producing messages, the AMQP driver automatically embeds metadata (exchange, routing key, queue) in the message body. This metadata is used by:
+When producing messages, the AMQP driver automatically embeds metadata in two ways:
 
-- The DLQ reporter to record accurate queue/exchange information for failed jobs
-- The dashboard to display routing details and enable correct retry routing
+**AMQP Headers** — set as application headers on every published message:
+
+| Header | Description |
+|---|---|
+| `x-message-name` | Fully-qualified job class name (e.g. `App\Job\SendEmailJob`) |
+| `x-message-id` | Unique message ID (UUIDv7) |
+
+These headers are visible in the RabbitMQ Management UI and can be used by any monitoring tool or consumer in any language.
+
+**Body Metadata** — exchange, routing key, and queue are embedded in the message body:
+
+- The DLQ reporter uses this to record accurate queue/exchange information for failed jobs
+- The dashboard uses this to display routing details and enable correct retry routing
 
 The metadata is transparently wrapped and unwrapped during serialization/deserialization. Old messages without metadata remain fully compatible.
 
