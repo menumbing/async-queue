@@ -163,8 +163,8 @@ Then configure a pool with the AMQP driver:
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `amqp.pool` | `string` | `'default'` | AMQP connection pool name |
-| `amqp.queue` | `string\|null` | `null` | Queue name. When `null`, uses `{app_name}.{pool_name}` |
-| `amqp.routing_key` | `string` | `'default'` | Routing key for message routing |
+| `amqp.queue` | `string\|null` | `null` | Queue name. When `null`, uses `{exchange}.{app_name}` |
+| `amqp.routing_key` | `string\|null` | `null` | Routing key for message routing. When `null`, uses `{exchange}` |
 | `amqp.exchange_type` | `Type` | `Type::DIRECT` | Exchange type: `DIRECT`, `TOPIC`, or `FANOUT` |
 | `amqp.reroute_failed` | `bool` | `false` | Route failed messages to a dedicated failed exchange/queue |
 | `amqp.use_delayed_exchange` | `bool` | `true` | Use `rabbitmq-delayed-message-exchange` plugin. Set `false` for TTL+DLQ approach |
@@ -521,9 +521,10 @@ The AMQP driver uses dot (`.`) separators for naming. The `channel` config deter
 | Main exchange | `{channel}` | `payment` |
 | Delay exchange | `{channel}.delayed` | `payment.delayed` |
 | Failed exchange | `{channel}.failed` | `payment.failed` |
-| Main queue | `{app_name}.{pool}` | `myapp.default` |
-| Delay queue | `{queue}.delay` | `myapp.default.delay` |
-| Failed queue | `{queue}.failed` | `myapp.default.failed` |
+| Main queue | `{exchange}.{app_name}` | `payment.myapp` |
+| Routing key | `{exchange}` | `payment` |
+| Delay queue | `{queue}.delay` | `payment.myapp.delay` |
+| Failed queue | `{queue}.failed` | `payment.myapp.failed` |
 
 All names can be overridden individually via the `amqp.*` config keys (see AMQP Options Reference).
 

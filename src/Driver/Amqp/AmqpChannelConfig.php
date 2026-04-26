@@ -31,8 +31,8 @@ class AmqpChannelConfig implements ChannelConfigInterface
 
         $this->exchange = $amqpConfig['exchange'] ?? $channel;
 
-        $this->queue = $amqpConfig['queue'] ?? $appName . '.' . $pool;
-        $this->routingKey = $amqpConfig['routing_key'] ?? 'default';
+        $this->queue = $amqpConfig['queue'] ?? $this->exchange . '.' . $appName;
+        $this->routingKey = $amqpConfig['routing_key'] ?? $this->exchange;
 
         $this->delayExchange = $amqpConfig['delay_exchange'] ?? $channel . '.delayed';
         $this->delayQueue = $amqpConfig['delay_queue'] ?? $this->queue . '.delay';
