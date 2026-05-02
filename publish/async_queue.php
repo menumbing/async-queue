@@ -42,5 +42,8 @@ return [
         'after' => true,
         'failed' => true,
         'retry' => true,
+        'before_push' => true,
+        'after_push' => true,
+        'push_failed' => true,
     ]
 ];

@@ -36,6 +36,11 @@ class ConsumerProcess extends AbstractProcess
         $this->nums = $this->config['processes'] ?? 1;
     }
 
+    public function getQueue(): string
+    {
+        return $this->queue;
+    }
+
     public function handle(): void
     {
         $this->driver->consume();

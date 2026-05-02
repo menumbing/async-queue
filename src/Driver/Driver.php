@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Hyperf\AsyncQueue\Driver;
 
 use Hyperf\AsyncQueue\Enum\Result;
+use Hyperf\AsyncQueue\Event\ConsumeError;
 use Hyperf\AsyncQueue\Event\QueueLength;
 use Hyperf\AsyncQueue\Exception\JobHandlingException;
 use Hyperf\AsyncQueue\Handler\JobHandler;
@@ -114,6 +115,8 @@ abstract class Driver implements DriverInterface
                 if ($slotAcquired) {
                     $this->concurrent->getChannel()->pop();
                 }
+
+                $this->event?->dispatch(new ConsumeError($exception, $this->pool));
 
                 $logger = $this->container->get(StdoutLoggerInterface::class);
                 $logger->error((string) $exception);

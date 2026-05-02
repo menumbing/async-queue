@@ -21,6 +21,7 @@ use Hyperf\AsyncQueue\Driver\DriverFactoryInterface;
 use Hyperf\AsyncQueue\Driver\DriverManager;
 use Hyperf\AsyncQueue\Failed\FailedQueueRecorderFactory;
 use Hyperf\AsyncQueue\Handler\JobHandler;
+use Hyperf\AsyncQueue\Listener\ConsumerProcessListener;
 use Hyperf\AsyncQueue\Listener\QueueHandleListener;
 use Hyperf\AsyncQueue\Listener\QueueLengthListener;
 use Hyperf\AsyncQueue\Listener\QueueStatsListener;
@@ -46,6 +47,7 @@ class ConfigProvider
                 RegisterProcessListener::class => 99,
                 QueueHandleListener::class,
                 QueueStatsListener::class,
+                ConsumerProcessListener::class,
                 ReloadChannelListener::class,
             ],
             'commands' => [
